@@ -7,7 +7,7 @@ class hit_record {
     vec3 normal;
     double t = 0;
 
-    bool front_face;
+    bool front_face = 0;
 
     void set_face_normal(const ray& r, const vec3& outward_normal) {
         // Sets the hit record normal vector.
