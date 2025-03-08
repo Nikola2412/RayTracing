@@ -1,2 +1,2 @@
 # RayTracing
-source: https://raytracing.github.io/books/RayTracingInOneWeekend.html
+source: https://raytracing.github.io/
