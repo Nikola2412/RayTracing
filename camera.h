@@ -36,7 +36,8 @@ public:
 
         file << "P3\n" << image_width << ' ' << image_height << "\n255\n";
 
-        int num_threads = std::thread::hardware_concurrency() / 2;  // Adjust based on your system
+        int num_threads = std::thread::hardware_concurrency();
+        num_threads = num_threads > 2 ? num_threads - 2 : 1;
         int rows_per_thread = image_height / num_threads;
         int remaining_rows = image_height % num_threads;
         std::vector<std::thread> threads;
@@ -72,6 +73,7 @@ public:
 
 private:
     int    image_height;         // Rendered image height
+    int img_height_remaining;
     double pixel_samples_scale;  // Color scale factor for a sum of pixel samples
     point3 center;               // Camera center
     point3 pixel00_loc;          // Location of pixel 0, 0
@@ -85,7 +87,7 @@ private:
 
     void initialize() {
         image_height = int(image_width / aspect_ratio);
-        image_height = (image_height < 1) ? 1 : image_height;
+        img_height_remaining = image_height = (image_height < 1) ? 1 : image_height;
 
         pixel_samples_scale = 1.0 / samples_per_pixel;
 
@@ -172,7 +174,7 @@ private:
         int samples_per_pixel, int max_depth, const hittable& world,
         std::vector<color>& thread_buffer) {
         for (int j = start_row; j < end_row; j++) {
-            std::clog << "\rScanlines remaining: " << (image_height - j) << ' ' << std::flush;
+            std::clog << "\rScanlines remaining: " << img_height_remaining-- << ' ' << std::flush;
             for (int i = 0; i < image_width; i++) {
                 color pixel_color(0, 0, 0);
                 for (int sample = 0; sample < samples_per_pixel; sample++) {
