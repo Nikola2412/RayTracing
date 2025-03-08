@@ -5,10 +5,7 @@
 #include "material.h"
 
 
-#include <mutex>
 #include <fstream>
-#include <vector>
-#include <thread>
 
 class camera {
 public:
@@ -36,36 +33,17 @@ public:
 
         file << "P3\n" << image_width << ' ' << image_height << "\n255\n";
 
-        int num_threads = std::thread::hardware_concurrency() / 2;  // Adjust based on your system
-        int rows_per_thread = image_height / num_threads;
-        int remaining_rows = image_height % num_threads;
-        std::vector<std::thread> threads;
-        int start_row = 0;
-
-        // Buffer for each thread to avoid locking file during write
-        std::vector<std::vector<color>> thread_buffers(num_threads);
-
-        // Divide the work among threads
-        for (int t = 0; t < num_threads; ++t) {
-            int end_row = start_row + rows_per_thread + (t < remaining_rows ? 1 : 0);
-            threads.emplace_back(&camera::render_scanlines, this, start_row, end_row, image_width,
-                image_height, samples_per_pixel, max_depth, std::cref(world),
-                std::ref(thread_buffers[t]));
-            start_row = end_row;
-        }
-
-        // Wait for all threads to finish
-        for (auto& t : threads) {
-            t.join();
-        }
-
-        // Write all buffers to the file
-        for (const auto& buffer : thread_buffers) {
-            for (const auto& pixel_color : buffer) {
+        for (int j = 0; j < image_height; j++) {
+            std::clog << "\rScanlines remaining: " << (image_height - j) << ' ' << std::flush;
+            for (int i = 0; i < image_width; i++) {
+                color pixel_color(0, 0, 0);
+                for (int sample = 0; sample < samples_per_pixel; sample++) {
+                    ray r = get_ray(i, j);
+                    pixel_color += ray_color(r, max_depth, world);
+                }
                 write_color(file, pixel_samples_scale * pixel_color);
             }
         }
-
         file.close();
         std::clog << "\rDone.                 \n";
     }
@@ -164,26 +142,6 @@ private:
         vec3 unit_direction = unit_vector(r.direction());
         auto a = 0.5 * (unit_direction.y() + 1.0);
         return (1.0 - a) * color(1.0, 1.0, 1.0) + a * color(0.5, 0.7, 1.0);
-    }
-
-
-    //Function to render scanlines for each thread
-    void render_scanlines(int start_row, int end_row, int image_width, int image_height,
-        int samples_per_pixel, int max_depth, const hittable& world,
-        std::vector<color>& thread_buffer) {
-        for (int j = start_row; j < end_row; j++) {
-            std::clog << "\rScanlines remaining: " << (image_height - j) << ' ' << std::flush;
-            for (int i = 0; i < image_width; i++) {
-                color pixel_color(0, 0, 0);
-                for (int sample = 0; sample < samples_per_pixel; sample++) {
-                    ray r = get_ray(i, j);
-                    pixel_color += ray_color(r, max_depth, world);
-                }
-
-                // Store the result in the thread's buffer
-                thread_buffer.push_back(pixel_color);
-            }
-        }
     }
 };
 
